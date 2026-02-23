@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0D1B2A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Dogu — Sistema de Control de Asistencia">
+<title>Dogu — Asistencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+/* ─── TOKENS ──────────────────────────────────────────────── */
+:root {
+  --navy:         #0D1B2A;
+  --navy-card:    #192840;
+  --navy-light:   #1E3050;
+  --accent:       #D81B60;
+  --accent-light: #E91E8C;
+  --accent-glow:  rgba(216,27,96,0.22);
+  --purple:       #9C27B0;
+  --success:      #00C896;
+  --warning:      #F5A623;
+  --danger:       #FF4757;
+  --info:         #64B5F6;
+  --muted:        #7A90A8;
+  --mid:          #B0C4D8;
+  --border:       rgba(255,255,255,0.08);
+  --border-hi:    rgba(255,255,255,0.14);
+  --r:            16px;
+  --r-sm:         10px;
+  --shadow:       0 8px 32px rgba(0,0,0,0.45);
+  --shadow-sm:    0 4px 16px rgba(0,0,0,0.28);
+  --fh:           'Space Grotesk', sans-serif;
+  --fb:           'DM Sans', sans-serif;
+}
+
+/* ─── BASE ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--fb); background: var(--navy); color: #fff; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+
+/* ─── BACKGROUNDS ─────────────────────────────────────────── */
+.bg-mesh {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 8%   0%,   rgba(216,27,96,0.09)   0%, transparent 65%),
+    radial-gradient(ellipse 55% 80% at 92%  100%, rgba(13,83,181,0.13)  0%, transparent 65%),
+    radial-gradient(ellipse 40% 40% at 50%  50%,  rgba(156,39,176,0.05) 0%, transparent 70%),
+    var(--navy);
+}
+.bg-grid {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* ─── APP SHELL ───────────────────────────────────────────── */
+#app { position: relative; z-index: 1; min-height: 100vh; }
+.screen { display: none; min-height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ─── HEADER ──────────────────────────────────────────────── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(13,27,42,0.85);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  position: sticky; top: 0; z-index: 200;
+}
+.logo { display: flex; align-items: center; gap: 11px; }
+.logo-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fh); font-weight: 700; font-size: 17px;
+  box-shadow: 0 4px 18px var(--accent-glow), 0 0 0 1px rgba(255,255,255,0.08) inset;
+}
+.logo-text { font-family: var(--fh); font-size: 19px; font-weight: 700; letter-spacing: -.4px; }
+.logo-text span { color: var(--accent-light); }
+.hdr-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ─── BUTTONS ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 18px; border-radius: var(--r-sm); border: none;
+  cursor: pointer; font-family: var(--fb); font-size: 14px; font-weight: 600;
+  transition: all .18s ease; text-decoration: none; white-space: nowrap; user-select: none;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  color: #fff; box-shadow: 0 4px 18px var(--accent-glow);
+}
+.btn-primary:hover  { transform: translateY(-1px); box-shadow: 0 8px 28px var(--accent-glow); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost  { background: rgba(255,255,255,0.06); color: var(--mid); border: 1px solid var(--border); }
+.btn-ghost:hover  { background: rgba(255,255,255,0.11); color: #fff; border-color: var(--border-hi); }
+.btn-outline { background: transparent; color: var(--accent-light); border: 1px solid var(--accent); }
+.btn-outline:hover { background: var(--accent-glow); }
+.btn-sm  { padding: 7px 12px; font-size: 12px; }
+.btn-lg  { padding: 15px 26px; font-size: 15px; }
+.btn-full { width: 100%; }
+.btn-icon { padding: 9px; border-radius: 9px; }
+
+/* ─── CARDS ───────────────────────────────────────────────── */
+.card {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; box-shadow: var(--shadow-sm);
+}
+.card-glass {
+  background: rgba(25,40,64,0.55); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: var(--r);
+}
+
+/* ─── INPUTS ──────────────────────────────────────────────── */
+.input-grp { display: flex; flex-direction: column; gap: 5px; }
+.input-lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+.input {
+  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 12px 15px; color: #fff;
+  font-family: var(--fb); font-size: 14px; outline: none;
+  transition: border-color .18s, background .18s;
+}
+.input:focus { border-color: var(--accent); background: rgba(216,27,96,0.06); }
+.input::placeholder { color: var(--muted); }
+.input-hint { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+/* ─── BADGES ──────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.badge-success { background: rgba(0,200,150,.15);  color: var(--success); }
+.badge-warning { background: rgba(245,166,35,.15); color: var(--warning); }
+.badge-danger  { background: rgba(255,71,87,.15);  color: var(--danger);  }
+.badge-accent  { background: var(--accent-glow);   color: var(--accent-light); }
+.badge-muted   { background: rgba(255,255,255,.07); color: var(--muted); }
+.badge-info    { background: rgba(100,181,246,.15); color: var(--info); }
+
+/* ─── TABS ────────────────────────────────────────────────── */
+.tabs { display: flex; gap: 3px; background: rgba(255,255,255,0.04); border-radius: var(--r-sm); padding: 4px; }
+.tab {
+  flex: 1; padding: 9px 10px; border-radius: 8px; border: none;
+  background: transparent; color: var(--muted);
+  font-family: var(--fb); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .18s; text-align: center;
+}
+.tab.active { background: var(--navy-light); color: #fff; box-shadow: var(--shadow-sm); }
+
+/* ─── STATS ───────────────────────────────────────────────── */
+.stat-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+.stat-card {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; position: relative; overflow: hidden;
+}
+.stat-card::before { content: ''; position: absolute; inset: 0; }
+.stat-card.s-success::before { background: radial-gradient(circle at 0 0, rgba(0,200,150,.12), transparent 60%); }
+.stat-card.s-danger::before  { background: radial-gradient(circle at 0 0, rgba(255,71,87,.12),  transparent 60%); }
+.stat-card.s-warning::before { background: radial-gradient(circle at 0 0, rgba(245,166,35,.12), transparent 60%); }
+.stat-card.s-accent::before  { background: radial-gradient(circle at 0 0, var(--accent-glow),   transparent 60%); }
+.stat-val   { font-family: var(--fh); font-size: 30px; font-weight: 700; line-height: 1; margin-bottom: 3px; position: relative; }
+.stat-lbl   { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; position: relative; }
+.stat-icon  { position: absolute; top: 14px; right: 14px; font-size: 20px; opacity: .55; }
+
+/* ─── LIST ROWS ───────────────────────────────────────────── */
+.row { display: flex; align-items: center; gap: 11px; padding: 13px 14px; border-radius: var(--r-sm); transition: background .12s; }
+.row:hover { background: rgba(255,255,255,0.04); }
+.row + .row { border-top: 1px solid var(--border); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+
+/* ─── MODAL ───────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  z-index: 500; display: flex; align-items: center; justify-content: center;
+  padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--navy-card); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px; padding: 26px; width: 100%; max-width: 440px;
+  transform: translateY(22px); transition: transform .28s; max-height: 90vh; overflow-y: auto;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+
+/* ─── TOASTS ──────────────────────────────────────────────── */
+.toast-wrap { position: fixed; top: 18px; right: 18px; z-index: 1000; display: flex; flex-direction: column; gap: 9px; }
+.toast {
+  background: var(--navy-card); border: 1px solid var(--border);
+  border-left: 3px solid var(--success); border-radius: var(--r-sm);
+  padding: 13px 16px; min-width: 270px; max-width: 340px; box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 9px;
+  animation: toastIn .28s ease, toastOut .28s ease 2.72s forwards; font-size: 13px;
+}
+.toast.err  { border-left-color: var(--danger); }
+.toast.warn { border-left-color: var(--warning); }
+.toast.info { border-left-color: var(--info); }
+@keyframes toastIn  { from { transform: translateX(100%); opacity:0; } to { transform: none; opacity:1; } }
+@keyframes toastOut { from { opacity:1; } to { opacity:0; transform: translateX(80px); } }
+
+/* ─── QR SCANNER ──────────────────────────────────────────── */
+#scanner-wrap { position: relative; width: 100%; max-width: 340px; margin: 0 auto; border-radius: var(--r); overflow: hidden; }
+#scanner-video { width: 100%; display: block; background: #000; aspect-ratio: 1; object-fit: cover; }
+.scan-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.scan-frame { width: 68%; height: 68%; position: relative; }
+.scan-frame::before,.scan-frame::after,.scan-frame>span::before,.scan-frame>span::after {
+  content:''; position:absolute; width:28px; height:28px; border-color:var(--accent); border-style:solid;
+}
+.scan-frame::before { top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0; }
+.scan-frame::after  { top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0; }
+.scan-frame>span::before { bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px; }
+.scan-frame>span::after  { bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0; }
+.scan-line { position:absolute; width:100%; height:2px; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:scanMove 1.8s linear infinite; left:0; }
+@keyframes scanMove { 0%{top:0} 100%{top:100%} }
+
+/* ─── SUCCESS ANIM ────────────────────────────────────────── */
+.check-anim { width:76px; height:76px; border-radius:50%; background:rgba(0,200,150,.14); display:flex; align-items:center; justify-content:center; margin:0 auto 18px; animation:popIn .45s cubic-bezier(.34,1.56,.64,1); font-size:34px; }
+@keyframes popIn { from{transform:scale(0) rotate(-25deg);opacity:0} to{transform:scale(1) rotate(0);opacity:1} }
+
+/* ─── BANNERS ─────────────────────────────────────────────── */
+.banner { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:var(--r-sm); margin-bottom:14px; font-size:13px; }
+.banner.loading { background:rgba(100,181,246,.09); border:1px solid rgba(100,181,246,.22); color:var(--info); }
+.banner.ok      { background:rgba(0,200,150,.09);  border:1px solid rgba(0,200,150,.22);  color:var(--success); }
+.banner.cache   { background:rgba(100,181,246,.09); border:1px solid rgba(100,181,246,.22); color:var(--info); }
+.banner.demo    { background:rgba(245,166,35,.09); border:1px solid rgba(245,166,35,.22); color:var(--warning); }
+.banner.err     { background:rgba(255,71,87,.09);  border:1px solid rgba(255,71,87,.22);  color:var(--danger); }
+
+/* ─── SHEET STATUS DOT ────────────────────────────────────── */
+.sheet-dot-wrap { display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 9px; border-radius:20px; }
+.sheet-dot-wrap.ok   { background:rgba(0,200,150,.12); color:var(--success); }
+.sheet-dot-wrap.demo { background:rgba(245,166,35,.12); color:var(--warning); }
+.sheet-dot-wrap.err  { background:rgba(255,71,87,.12); color:var(--danger); }
+.sdot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+.sdot.pulse { animation:pulse 1.6s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ─── CONFIG SECTIONS ─────────────────────────────────────── */
+.cfg-block { border:1px solid var(--border); border-radius:var(--r); padding:18px; margin-bottom:14px; }
+.cfg-title { font-family:var(--fh); font-size:14px; font-weight:700; color:var(--mid); margin-bottom:11px; display:flex; align-items:center; gap:8px; }
+.step-num { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--accent); font-size:10px; font-weight:700; flex-shrink:0; }
+.code-pill { background:rgba(255,255,255,0.06); border-radius:6px; padding:2px 7px; font-family:monospace; font-size:12px; color:var(--accent-light); word-break:break-all; }
+
+/* ─── QR PRINT GRID ───────────────────────────────────────── */
+.qr-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:14px; }
+.qr-card { background:#fff; border-radius:var(--r); padding:14px; text-align:center; }
+.qr-card-code { font-family:var(--fh); font-size:12px; font-weight:700; margin-top:8px; color:#0D1B2A; }
+.qr-card-name { font-size:10px; color:#666; margin-top:2px; }
+
+/* ─── EMPLOYEE SEARCH ─────────────────────────────────────── */
+.srch-wrap { position:relative; }
+.srch-drop {
+  position:absolute; top:calc(100% + 5px); left:0; right:0;
+  background:var(--navy-card); border:1px solid var(--border-hi);
+  border-radius:var(--r-sm); max-height:210px; overflow-y:auto;
+  z-index:300; box-shadow:var(--shadow);
+}
+.srch-opt { padding:11px 14px; cursor:pointer; font-size:13px; transition:background .12s; display:flex; align-items:center; gap:9px; }
+.srch-opt:hover { background:rgba(255,255,255,0.06); }
+
+/* ─── LAYOUT UTILS ────────────────────────────────────────── */
+.page { flex:1; padding:18px 18px 96px; max-width:580px; margin:0 auto; width:100%; }
+.section-title { font-family:var(--fh); font-size:17px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.divider { height:1px; background:var(--border); margin:10px 0; }
+.flex  { display:flex; } .flex-col { flex-direction:column; } .flex-1 { flex:1; }
+.items-center { align-items:center; } .justify-between { justify-content:space-between; } .justify-center { justify-content:center; }
+.gap-2 { gap:8px; } .gap-3 { gap:12px; }
+.mt-2{margin-top:8px} .mt-3{margin-top:12px} .mt-4{margin-top:16px}
+.mb-2{margin-bottom:8px} .mb-3{margin-bottom:12px} .mb-4{margin-bottom:16px}
+.w-full{width:100%} .text-sm{font-size:12px} .text-center{text-align:center}
+.text-muted{color:var(--muted)} .text-success{color:var(--success)} .text-warning{color:var(--warning)} .text-danger{color:var(--danger)}
+.font-bold{font-weight:700} .font-medium{font-weight:500} .hidden{display:none!important}
+.pill-row{display:flex;flex-wrap:wrap;gap:7px}
+::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:3px}
+
+/* ─── DATA TABLE ──────────────────────────────────────────── */
+.dtbl { width:100%; border-collapse:collapse; font-size:12px; }
+.dtbl th { text-align:left; padding:9px 11px; color:var(--muted); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+.dtbl td { padding:11px 11px; border-bottom:1px solid rgba(255,255,255,.04); }
+.dtbl tr:hover td { background:rgba(255,255,255,.02); }
+
+/* ─── SPINNER ─────────────────────────────────────────────── */
+.spin { width:36px; height:36px; border:2.5px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin .75s linear infinite; margin:0 auto; }
+.spin-sm { width:15px; height:15px; border-width:2px; margin:0; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ─── SPLASH ──────────────────────────────────────────────── */
+#splash {
+  position:fixed; inset:0; background:var(--navy); z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition:opacity .45s;
+}
+.splash-mark {
+  width:82px; height:82px; background:linear-gradient(135deg,var(--accent),var(--purple));
+  border-radius:26px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--fh); font-weight:700; font-size:38px;
+  box-shadow:0 16px 52px var(--accent-glow), 0 0 0 1px rgba(255,255,255,.08) inset;
+  animation:floatIn .55s cubic-bezier(.34,1.56,.64,1); margin-bottom:18px;
+}
+@keyframes floatIn { from{transform:scale(.5) translateY(24px);opacity:0} to{transform:none;opacity:1} }
+.splash-title { font-family:var(--fh); font-size:34px; font-weight:700; letter-spacing:-.5px; margin-bottom:5px; }
+.splash-title span { color:var(--accent-light); }
+.splash-sub { color:var(--muted); font-size:13px; margin-bottom:40px; }
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+@media(min-width:640px) {
+  .stat-grid { grid-template-columns:repeat(4,1fr); }
+  .page { padding:24px 22px 96px; }
+}
+
+/* ─── CONNECTION SETUP NOTICE ─────────────────────────────── */
+.setup-notice {
+  display:none; /* hidden by JS when Sheet ID is pre-filled */
+}
+</style>
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+<div class="bg-grid"></div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-mark">D</div>
+  <div class="splash-title">Do<span>gu</span></div>
+  <div class="splash-sub">Cargando datos…</div>
+  <div class="spin"></div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div id="app">
+
+<!-- ══════════════════════════════════════════════
+     PANTALLA: LOGIN
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-login" style="align-items:center;justify-content:center;padding:24px;">
+  <div style="width:100%;max-width:380px;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div class="splash-mark" style="margin:0 auto 14px;width:60px;height:60px;font-size:26px;border-radius:18px;"></div>
+      <div class="splash-title" style="font-size:26px;">Do<span style="color:var(--accent-light)">gu</span></div>
+      <div id="login-sheet-status" style="margin-top:8px;display:flex;justify-content:center;"></div>
+    </div>
+    <div class="card">
+      <div style="font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:18px;">Iniciar Sesión</div>
+      <div class="input-grp mb-3">
+        <label class="input-lbl">Perfil</label>
+        <input type="text" class="input" id="login-user" placeholder="admin  o  empleado" value="admin">
+      </div>
+      <div class="input-grp mb-4">
+        <label class="input-lbl">Contraseña</label>
+        <input type="password" class="input" id="login-pass" placeholder="••••••" value="dogu2024">
+      </div>
+      <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Entrar →</button>
+
+      <!-- Loading banner shown on login while data loads -->
+      <div id="login-loading" class="banner loading mt-3 hidden">
+        <div class="spin spin-sm"></div>
+        <span>Sincronizando con Google Sheets…</span>
+      </div>
+
+      <div style="margin-top:14px;padding:11px;background:rgba(216,27,96,0.07);border-radius:9px;font-size:11px;color:var(--muted);">
+        <strong style="color:var(--accent-light);">Usuarios demo:</strong> admin / empleado &nbsp;·&nbsp; Contraseña: dogu2024
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PANTALLA: EMPLEADO
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-empleado">
+  <div class="header">
+    <div class="logo"><div class="logo-mark">D</div><div class="logo-text">Do<span>gu</span></div></div>
+    <div class="hdr-actions">
+      <span id="emp-clock" style="font-size:13px;color:var(--muted);font-family:var(--fh);"></span>
+      <div id="emp-sheet-dot"></div>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="logout()" title="Salir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="page">
+    <div style="margin-bottom:22px;">
+      <div id="emp-greeting" style="color:var(--muted);font-size:13px;margin-bottom:3px;"></div>
+      <div style="font-family:var(--fh);font-size:22px;font-weight:700;">Registra tu asistencia</div>
+    </div>
+
+    <!-- Data banner -->
+    <div id="emp-banner" class="banner loading">
+      <div class="spin spin-sm"></div>
+      <span>Conectando con Google Sheets…</span>
+    </div>
+
+    <!-- Último registro del día -->
+    <div id="emp-last" class="card mb-3 hidden">
+      <div class="text-sm text-muted mb-2" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;">Tu último registro hoy</div>
+      <div id="emp-last-body"></div>
+    </div>
+
+    <!-- PASO 1 -->
+    <div class="card mb-3">
+      <div class="section-title" style="font-size:15px;margin-bottom:12px;">
+        <span class="step-num">1</span> Selecciona tu nombre
+      </div>
+      <div class="srch-wrap">
+        <input type="text" class="input" id="emp-search" placeholder="Escribe tu nombre…" autocomplete="off"
+          oninput="filterEmployees(this.value)" onfocus="showEmpDrop()">
+        <div class="srch-drop hidden" id="emp-drop"></div>
+      </div>
+      <div id="emp-selected" class="hidden mt-3" style="padding:11px;background:rgba(0,200,150,0.07);border:1px solid rgba(0,200,150,0.2);border-radius:9px;">
+        <div class="flex items-center gap-2">
+          <span id="sel-av" class="avatar" style="width:30px;height:30px;font-size:11px;"></span>
+          <div><div class="font-medium" id="sel-name" style="font-size:13px;"></div><div class="text-sm text-muted" id="sel-dept"></div></div>
+          <button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto;" onclick="clearEmp()">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 2 -->
+    <div class="card mb-3">
+      <div class="section-title" style="font-size:15px;margin-bottom:12px;">
+        <span class="step-num">2</span> Selecciona tu turno
+      </div>
+      <div class="tabs" id="turno-tabs">
+        <button class="tab active" onclick="setTurno('matutino',this)">🌅 Matutino</button>
+        <button class="tab" onclick="setTurno('vespertino',this)">🌆 Vespertino</button>
+        <button class="tab" onclick="setTurno('intermedio',this)">☀️ Intermedio</button>
+      </div>
+      <div id="turno-hint" class="text-sm text-muted mt-2"></div>
+    </div>
+
+    <!-- PASO 3 -->
+    <div class="card mb-3">
+      <div class="section-title" style="font-size:15px;margin-bottom:12px;">
+        <span class="step-num">3</span> Escanea el código QR
+      </div>
+      <div id="sc-idle">
+        <button class="btn btn-primary btn-full" onclick="startScan()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><path d="M17 17v.01M14 14h3v3"/></svg>
+          Abrir Cámara
+        </button>
+        <div class="text-center text-sm text-muted mt-2" style="font-size:11px;">O usa el simulador de sucursales ↓</div>
+      </div>
+      <div id="sc-active" class="hidden">
+        <div id="scanner-wrap">
+          <video id="scanner-video" playsinline autoplay muted></video>
+          <div class="scan-overlay"><div class="scan-frame"><span></span><div class="scan-line"></div></div></div>
+        </div>
+        <canvas id="scanner-canvas" class="hidden"></canvas>
+        <button class="btn btn-ghost btn-full mt-3" onclick="stopScan()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- GPS -->
+    <div id="gps-card" class="card mb-3 hidden">
+      <div class="flex items-center gap-3">
+        <span style="font-size:22px;">📍</span>
+        <div class="flex-1">
+          <div class="font-medium" id="gps-text" style="font-size:13px;"></div>
+          <div class="text-sm text-muted" id="gps-sub"></div>
+        </div>
+        <div id="gps-badge"></div>
+      </div>
+    </div>
+
+    <!-- SIMULADOR -->
+    <div class="card">
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px;">🧪 Simulador de sucursales</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Toca para simular un escaneo QR en esa sucursal</div>
+      <div class="pill-row" id="sim-btns"></div>
+    </div>
+  </div>
+</div><!-- /screen-empleado -->
+
+<!-- ══════════════════════════════════════════════
+     PANTALLA: ADMIN
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen-admin">
+  <div class="header">
+    <div class="logo"><div class="logo-mark">D</div><div class="logo-text">Do<span>gu</span></div></div>
+    <div class="hdr-actions">
+      <div id="adm-sheet-dot"></div>
+      <span class="badge badge-accent" style="font-size:10px;">Admin</span>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Admin tab bar -->
+  <div style="padding:10px 18px 0;position:sticky;top:65px;z-index:190;background:rgba(13,27,42,0.92);backdrop-filter:blur(14px);">
+    <div class="tabs" id="adm-tabs" style="font-size:12px;">
+      <button class="tab active" onclick="admTab('dashboard',this)">📊 Dashboard</button>
+      <button class="tab" onclick="admTab('retardos',this)">⏰ Retardos</button>
+      <button class="tab" onclick="admTab('ausentes',this)">🚨 Ausentes</button>
+      <button class="tab" onclick="admTab('qr',this)">🔑 QR</button>
+      <button class="tab" onclick="admTab('config',this)">⚙️ Config</button>
+    </div>
+  </div>
+
+  <div class="page">
+
+    <!-- ── DASHBOARD ─────────────────────────────────────── -->
+    <div id="tab-dashboard">
+      <div style="margin-bottom:18px;">
+        <div style="color:var(--muted);font-size:12px;" id="adm-date"></div>
+        <div style="font-family:var(--fh);font-size:20px;font-weight:700;margin-top:2px;">Dashboard General</div>
+      </div>
+      <div id="adm-banner" class="banner loading">
+        <div class="spin spin-sm"></div><span>Cargando desde Google Sheets…</span>
+      </div>
+      <div class="stat-grid mb-4" id="adm-stats"></div>
+      <div class="card mb-4">
+        <div class="section-title" style="font-size:15px;">📋 Registros de Hoy</div>
+        <div id="rec-list" style="max-height:380px;overflow-y:auto;"></div>
+        <button class="btn btn-ghost btn-sm mt-3 w-full" onclick="clearToday()" style="color:var(--danger);font-size:12px;">🗑 Limpiar registros de hoy (Demo)</button>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-primary flex-1" onclick="exportExcel()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Excel
+        </button>
+        <button class="btn btn-outline flex-1" onclick="exportPDF()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+          PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- ── RETARDOS ───────────────────────────────────────── -->
+    <div id="tab-retardos" class="hidden">
+      <div style="font-family:var(--fh);font-size:20px;font-weight:700;margin-bottom:16px;">⏰ Retardos del Día</div>
+      <div id="ret-content"></div>
+    </div>
+
+    <!-- ── AUSENTES ───────────────────────────────────────── -->
+    <div id="tab-ausentes" class="hidden">
+      <div class="flex items-center justify-between mb-4">
+        <div style="font-family:var(--fh);font-size:20px;font-weight:700;">🚨 Ausentismo</div>
+        <button class="btn btn-ghost btn-sm" onclick="renderAusentes()">↻ Actualizar</button>
+      </div>
+      <div id="aus-content"></div>
+    </div>
+
+    <!-- ── QR CODES ───────────────────────────────────────── -->
+    <div id="tab-qr" class="hidden">
+      <div style="font-family:var(--fh);font-size:20px;font-weight:700;margin-bottom:14px;">🔑 Códigos QR por Sucursal</div>
+      <div class="banner demo mb-3">
+        ⭐ Los QR se generan automáticamente desde tu Google Sheet. Agrega una sucursal allá y aparecerá aquí al instante.
+      </div>
+      <div class="qr-grid" id="qr-grid"></div>
+    </div>
+
+    <!-- ── CONFIG ─────────────────────────────────────────── -->
+    <div id="tab-config" class="hidden">
+      <div style="font-family:var(--fh);font-size:20px;font-weight:700;margin-bottom:4px;">⚙️ Configuración</div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:18px;">Conexión con Google Sheets y preferencias</div>
+
+      <!-- Estado actual -->
+      <div class="cfg-block">
+        <div class="cfg-title">📡 Estado de Conexión</div>
+        <div id="cfg-status-body" style="font-size:13px;line-height:1.8;"></div>
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-ghost flex-1 btn-sm" onclick="reloadData(true)">↻ Forzar recarga</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearCache()" style="color:var(--warning);">🗑 Limpiar caché</button>
+        </div>
+      </div>
+
+      <!-- Sheet ID -->
+      <div class="cfg-block">
+        <div class="cfg-title"><span class="step-num">1</span> Google Sheet ID</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+          Está en la URL de tu Sheet:<br>
+          <span class="code-pill">docs.google.com/spreadsheets/d/<strong style="color:#fff;">ID_AQUÍ</strong>/edit</span>
+        </div>
+        <div class="input-grp mb-3">
+          <label class="input-lbl">Sheet ID</label>
+          <input type="text" class="input" id="cfg-sheet-id" style="font-size:12px;font-family:monospace;">
+          <div class="input-hint">Actualmente: el Sheet ya está pre-configurado con tu ID.</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-primary flex-1 btn-sm" onclick="saveSheetId()">💾 Guardar y recargar</button>
+          <button class="btn btn-ghost btn-sm" onclick="testSheet()">🔍 Probar</button>
+        </div>
+        <div id="cfg-test-result" class="hidden mt-2"></div>
+      </div>
+
+      <!-- Estructura del Sheet -->
+      <div class="cfg-block">
+        <div class="cfg-title"><span class="step-num">2</span> Estructura requerida del Sheet</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+          <div style="margin-bottom:8px;">
+            <strong style="color:#fff;">Pestaña: </strong><span class="code-pill">Empleados</span><br>
+            Columnas: <span class="code-pill">ID</span> <span class="code-pill">Nombre</span> <span class="code-pill">Departamento</span> <span class="code-pill">TurnoDefault</span>
+          </div>
+          <div style="margin-bottom:8px;">
+            <strong style="color:#fff;">Pestaña: </strong><span class="code-pill">Sucursales</span><br>
+            Columnas: <span class="code-pill">Codigo</span> <span class="code-pill">Nombre</span> <span class="code-pill">Latitud</span> <span class="code-pill">Longitud</span> <span class="code-pill">HorarioEspecial</span> <span class="code-pill">MatutinoH</span> <span class="code-pill">MatutinoM</span> <span class="code-pill">VespertinoH</span> <span class="code-pill">VespertinoM</span> <span class="code-pill">IntermedioH</span> <span class="code-pill">IntermedioM</span>
+          </div>
+          <div>
+            <strong style="color:#fff;">Pestaña: </strong><span class="code-pill">Config</span><br>
+            Columnas: <span class="code-pill">Clave</span> <span class="code-pill">Valor</span><br>
+            <span style="color:var(--warning);">⚠️ El Sheet debe estar publicado: Archivo → Publicar en la web → CSV</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contraseñas -->
+      <div class="cfg-block">
+        <div class="cfg-title">🔑 Contraseñas</div>
+        <div class="input-grp mb-3">
+          <label class="input-lbl">Contraseña empleados</label>
+          <input type="text" class="input" id="cfg-emp-pass" placeholder="dogu2024">
+        </div>
+        <div class="input-grp mb-3">
+          <label class="input-lbl">Contraseña admin</label>
+          <input type="text" class="input" id="cfg-adm-pass" placeholder="dogu2024">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="savePasses()">Guardar contraseñas</button>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /screen-admin -->
+
+</div><!-- /app -->
+
+<!-- MODAL resultado de escaneo -->
+<div class="modal-overlay" id="result-modal">
+  <div class="modal"><div id="result-body"></div></div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── CONSTANTES ──────────────────────────────────────────────────
+const SHEET_ID_DEFAULT = '16oHfsAQSB-ugz0OrxDtwClHohPswphOJMmMM6u6KXXU';
+const CACHE_TTL_MS     = 60 * 60 * 1000; // 60 minutos (cambios mensuales)
+const GPS_RADIUS_M     = 50;
+
+const K_CFG    = 'dogu_cfg';
+const K_DATA   = 'dogu_data';
+const K_REC    = 'dogu_records';
+
+// ── CONFIG ───────────────────────────────────────────────────────
+function getCfg() {
+  const base = { sheetId: SHEET_ID_DEFAULT, empPass: 'dogu2024', admPass: 'dogu2024' };
+  try { return { ...base, ...JSON.parse(localStorage.getItem(K_CFG) || '{}') }; }
+  catch { return base; }
+}
+function setCfg(patch) {
+  localStorage.setItem(K_CFG, JSON.stringify({ ...getCfg(), ...patch }));
+}
+
+// ── DB (en memoria, cargado desde Sheets) ────────────────────────
+let DB = {
+  employees : [],  // { id, name, dept, turnoDefault }
+  branches  : [],  // { code, name, lat, lng, specialSchedule, schedules }
+  loaded    : false,
+  source    : 'none',   // 'live' | 'cache' | 'demo'
+  syncedAt  : null,
+};
+
+// ── CSV PARSER (robusto para el formato que genera Google Sheets) ─
+function parseCSV(raw) {
+  // Google Sheets añade \r\n y puede meter BOM
+  const text = raw.replace(/\ufeff/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const lines = text.split('\n');
+  if (lines.length < 2) return [];
+
+  function splitLine(line) {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) {
+        cols.push(cur); cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    cols.push(cur);
+    return cols.map(c => c.trim());
+  }
+
+  const headers = splitLine(lines[0]);
+  return lines.slice(1)
+    .map(line => {
+      const cols = splitLine(line);
+      const row = {};
+      headers.forEach((h, i) => { row[h] = cols[i] ?? ''; });
+      return row;
+    })
+    .filter(r => Object.values(r).some(v => v !== ''));
+}
+
+// ── SHEET FETCHER ────────────────────────────────────────────────
+function sheetURL(sheetId, tab) {
+  // gviz endpoint: no necesita que el Sheet esté compartido públicamente,
+  // solo "Publicar en la web" es suficiente.
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}&t=${Date.now()}`;
+}
+
+async function fetchTab(sheetId, tab) {
+  const r = await fetch(sheetURL(sheetId, tab), { cache: 'no-store' });
+  if (!r.ok) throw new Error(`HTTP ${r.status} al leer pestaña "${tab}"`);
+  return parseCSV(await r.text());
+}
+
+// ── PARSERS ──────────────────────────────────────────────────────
+function col(row, ...keys) {
+  for (const k of keys) {
+    const v = row[k] ?? row[k.toLowerCase()] ?? row[k.toUpperCase()];
+    if (v !== undefined && v !== '') return v;
+  }
+  return '';
+}
+
+function parseEmployees(rows) {
+  return rows.map((r, i) => ({
+    id          : col(r,'ID','id') || `E${String(i+1).padStart(3,'0')}`,
+    name        : col(r,'Nombre','nombre','Name'),
+    dept        : col(r,'Departamento','departamento','Dept') || 'Operativo',
+    turnoDefault: (col(r,'TurnoDefault','turnodefault','Turno') || 'matutino').toLowerCase(),
+  })).filter(e => e.name.trim());
+}
+
+function parseBranches(rows) {
+  return rows.map(r => {
+    const code    = col(r,'Codigo','codigo','Code').trim();
+    const name    = col(r,'Nombre','nombre','Name') || code;
+    const lat     = parseFloat(col(r,'Latitud','latitud','Lat'))  || 0;
+    const lng     = parseFloat(col(r,'Longitud','longitud','Lng')) || 0;
+    const special = col(r,'HorarioEspecial','horarioespecial','Especial').toUpperCase() === 'SI';
+
+    const mH = parseInt(col(r,'MatutinoH','matutinoH')   || '7',  10);
+    const mM = parseInt(col(r,'MatutinoM','matutinoM')   || '30', 10);
+    const vH = parseInt(col(r,'VespertinoH','vespertinoH')|| '14', 10);
+    const vM = parseInt(col(r,'VespertinoM','vespertinoM')|| '30', 10);
+    const iHs = col(r,'IntermedioH','intermedioH');
+    const iMs = col(r,'IntermedioM','intermedioM');
+    const iH  = iHs ? parseInt(iHs,10) : null;
+    const iM  = iMs ? parseInt(iMs,10) : 0;
+
+    const fmt = (h,m) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+    return {
+      code, name, lat, lng, specialSchedule: special,
+      schedules: {
+        matutino:   { hour:mH, min:mM, label:fmt(mH,mM) },
+        vespertino: { hour:vH, min:vM, label:fmt(vH,vM) },
+        intermedio: iH !== null ? { hour:iH, min:iM, label:fmt(iH,iM) } : null,
+      }
+    };
+  }).filter(b => b.code);
+}
+
+// ── MAIN DATA LOADER ─────────────────────────────────────────────
+async function loadData(force = false) {
+  setBanners('loading');
+
+  // 1. Cache hit (si no es forzado y el caché es válido)
+  if (!force) {
+    try {
+      const c = JSON.parse(localStorage.getItem(K_DATA) || 'null');
+      if (c && (Date.now() - c.ts) < CACHE_TTL_MS && c.employees?.length) {
+        DB.employees = c.employees;
+        DB.branches  = c.branches;
+        DB.loaded    = true;
+        DB.source    = 'cache';
+        DB.syncedAt  = new Date(c.ts);
+        onLoaded();
+        return;
+      }
+    } catch(_) {}
+  }
+
+  // 2. Fetch desde Google Sheets
+  const sheetId = getCfg().sheetId;
+  if (!sheetId) { DB.source = 'demo'; DB.loaded = true; onLoaded(); return; }
+
+  try {
+    const [empRows, branchRows] = await Promise.all([
+      fetchTab(sheetId, 'Empleados'),
+      fetchTab(sheetId, 'Sucursales'),
+    ]);
+
+    DB.employees = parseEmployees(empRows);
+    DB.branches  = parseBranches(branchRows);
+    DB.loaded    = true;
+    DB.source    = 'live';
+    DB.syncedAt  = new Date();
+
+    // Guardar caché
+    localStorage.setItem(K_DATA, JSON.stringify({
+      employees: DB.employees,
+      branches:  DB.branches,
+      ts: Date.now(),
+    }));
+
+    onLoaded();
+    toast(`✅ ${DB.employees.length} empleados · ${DB.branches.length} sucursales cargados`);
+
+  } catch(err) {
+    console.error('[Dogu] Error al cargar Sheet:', err);
+
+    // Intentar usar caché aunque sea expirado
+    try {
+      const c = JSON.parse(localStorage.getItem(K_DATA) || 'null');
+      if (c?.employees?.length) {
+        DB.employees = c.employees;
+        DB.branches  = c.branches;
+        DB.loaded    = true;
+        DB.source    = 'cache';
+        DB.syncedAt  = new Date(c.ts);
+        onLoaded();
+        toast(`⚠️ Sin conexión — usando datos en caché (${new Date(c.ts).toLocaleTimeString('es-MX')})`, 'warn');
+        return;
+      }
+    } catch(_) {}
+
+    DB.source = 'demo';
+    DB.loaded = true;
+    onLoaded();
+    toast(`❌ No se pudo conectar: ${err.message}. Verifica que el Sheet esté publicado en la web.`, 'err');
+  }
+}
+
+function onLoaded() {
+  setBanners(DB.source);
+  renderSheetDots();
+  renderSimBtns();
+  renderCfgStatus();
+  if (ST.screen === 'admin') { renderDashboard(); renderQR(); }
+  if (ST.screen === 'login') renderLoginDot();
+}
+
+// ── BANNERS ──────────────────────────────────────────────────────
+const BANNER_COPY = {
+  loading: { cls:'loading', icon:'<div class="spin spin-sm"></div>',  txt:'Conectando con Google Sheets…' },
+  live:    { cls:'ok',   icon:'🟢', get txt() { return `Datos en vivo — ${DB.employees.length} empleados · ${DB.branches.length} sucursales`; } },
+  cache:   { cls:'cache',icon:'💾', get txt() { return `Caché (${DB.syncedAt?.toLocaleTimeString('es-MX')||'?'}) — ${DB.employees.length} emp · ${DB.branches.length} suc`; } },
+  demo:    { cls:'demo', icon:'⚠️', txt:'Sin Sheet configurado o Sheet no publicado. Ve a Admin → ⚙️ Config.' },
+  err:     { cls:'err',  icon:'❌', txt:'Error de conexión. Revisa que el Sheet esté publicado.' },
+};
+function setBanners(key) {
+  const m = BANNER_COPY[key] || BANNER_COPY.demo;
+  ['emp-banner','adm-banner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = `banner ${m.cls}`;
+    el.innerHTML = `${m.icon} <span>${m.txt}</span>`;
+  });
+}
+
+function renderSheetDots() {
+  const isOk = DB.source === 'live' || DB.source === 'cache';
+  const cls  = isOk ? 'ok' : DB.source === 'demo' ? 'demo' : 'err';
+  const lbl  = isOk ? 'Sheet OK' : DB.source === 'demo' ? 'Demo' : 'Error';
+  const html = `<div class="sheet-dot-wrap ${cls}"><div class="sdot ${isOk?'pulse':''}"></div>${lbl}</div>`;
+  ['emp-sheet-dot','adm-sheet-dot'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
+}
+
+function renderLoginDot() {
+  const el = document.getElementById('login-sheet-status');
+  if (!el) return;
+  renderSheetDots();
+  const isOk = DB.source === 'live' || DB.source === 'cache';
+  const cls  = isOk ? 'ok' : 'demo';
+  const lbl  = isOk ? `Conectado · ${DB.employees.length} empleados` : 'Sin Sheet — modo demo';
+  el.innerHTML = `<div class="sheet-dot-wrap ${cls}" style="font-size:11px;"><div class="sdot ${isOk?'pulse':''}"></div>${lbl}</div>`;
+}
+
+// ── STATE ─────────────────────────────────────────────────────────
+const ST = {
+  screen   : 'login',
+  role     : null,
+  employee : null,
+  turno    : 'matutino',
+  stream   : null,
+  scanning : false,
+  rafId    : null,
+};
+
+// ── RECORDS ───────────────────────────────────────────────────────
+const getRecs     = ()      => { try { return JSON.parse(localStorage.getItem(K_REC)||'[]'); } catch{ return []; } };
+const saveRec     = r       => { const a=getRecs(); a.push(r); localStorage.setItem(K_REC,JSON.stringify(a)); };
+const todayRecs   = ()      => { const d=new Date().toDateString(); return getRecs().filter(r=>new Date(r.ts).toDateString()===d); };
+const clearToday  = ()      => { const d=new Date().toDateString(); localStorage.setItem(K_REC,JSON.stringify(getRecs().filter(r=>new Date(r.ts).toDateString()!==d))); toast('Registros de hoy eliminados','warn'); renderDashboard(); };
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function toast(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = `toast ${type==='ok'?'':type}`;
+  const ic = {ok:'✅',warn:'⚠️',err:'❌',info:'ℹ️'};
+  el.innerHTML = `<span>${ic[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  ST.screen = name;
+}
+
+function fmtTime(d) { return new Date(d).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(d) { return new Date(d).toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); }
+function initials(n) { return n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase(); }
+function avatarColor(id) {
+  const pal=['#D81B60','#9C27B0','#3F51B5','#00838F','#2E7D32','#E65100','#546E7A'];
+  let h=0; for(const c of (id||'x')) h=(h*31+c.charCodeAt(0))&0xffff;
+  return pal[h%pal.length];
+}
+
+function calcDelay(turno, branchCode, now) {
+  const b = DB.branches.find(x=>x.code===branchCode);
+  const slot = b?.schedules?.[turno];
+  if (!slot) return 0;
+  const sched = slot.hour*60+slot.min;
+  const actual= now.getHours()*60+now.getMinutes();
+  return Math.max(0, actual-sched);
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────
+setInterval(()=>{const el=document.getElementById('emp-clock');if(el)el.textContent=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});},1000);
+
+function greeting() {
+  const h=new Date().getHours();
+  const el=document.getElementById('emp-greeting');
+  if(el) el.textContent=h<12?'Buenos días 👋':h<18?'Buenas tardes 👋':'Buenas noches 👋';
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const cfg  = getCfg();
+
+  if (user==='admin') {
+    if (pass!==cfg.admPass) { toast('Contraseña incorrecta','err'); return; }
+    ST.role='admin';
+    showScreen('admin');
+    document.getElementById('adm-date').textContent = fmtDate(new Date());
+    document.getElementById('cfg-sheet-id').value = cfg.sheetId||'';
+    renderDashboard(); renderQR(); renderCfgStatus(); renderSheetDots();
+  } else if (user==='empleado') {
+    if (pass!==cfg.empPass) { toast('Contraseña incorrecta','err'); return; }
+    ST.role='empleado';
+    showScreen('empleado');
+    greeting();
+    renderLastRec();
+    renderSimBtns();
+    renderSheetDots();
+    updTurnoHint();
+  } else {
+    toast('Usuario no reconocido. Usa "admin" o "empleado"','err');
+  }
+}
+
+function logout() {
+  stopScan();
+  ST.role=null; ST.employee=null;
+  showScreen('login');
+  renderLoginDot();
+}
+
+// ── EMPLOYEE SEARCH ───────────────────────────────────────────────
+function filterEmployees(q) {
+  const dd=document.getElementById('emp-drop');
+  if (!q.trim()) { dd.classList.add('hidden'); return; }
+
+  if (!DB.employees.length) {
+    dd.innerHTML=`<div class="srch-opt" style="cursor:default;color:var(--warning);">⚠️ Sin empleados. Configura tu Sheet en Admin → ⚙️</div>`;
+    dd.classList.remove('hidden'); return;
+  }
+
+  const ql = q.toLowerCase();
+  const found = DB.employees.filter(e=>e.name.toLowerCase().includes(ql)).slice(0,9);
+  if (!found.length) { dd.classList.add('hidden'); return; }
+
+  dd.innerHTML = found.map(e=>`
+    <div class="srch-opt" onclick="pickEmp('${e.id}')">
+      <span style="width:26px;height:26px;border-radius:50%;background:${avatarColor(e.id)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">${initials(e.name)}</span>
+      <div>
+        <div style="font-size:13px;">${e.name}</div>
+        <div style="font-size:10px;color:var(--muted);">${e.dept}</div>
+      </div>
+    </div>`).join('');
+  dd.classList.remove('hidden');
+}
+
+function showEmpDrop() { const v=document.getElementById('emp-search').value; if(v.trim()) filterEmployees(v); }
+
+function pickEmp(id) {
+  const e=DB.employees.find(x=>x.id===id); if(!e) return;
+  ST.employee=e;
+  document.getElementById('emp-drop').classList.add('hidden');
+  document.getElementById('emp-search').value=e.name;
+  document.getElementById('emp-selected').classList.remove('hidden');
+  const av=document.getElementById('sel-av');
+  av.textContent=initials(e.name);
+  av.style.background=`linear-gradient(135deg,${avatarColor(e.id)},var(--purple))`;
+  document.getElementById('sel-name').textContent=e.name;
+  document.getElementById('sel-dept').textContent=e.dept;
+  renderLastRec();
+}
+
+function clearEmp() {
+  ST.employee=null;
+  document.getElementById('emp-search').value='';
+  document.getElementById('emp-selected').classList.add('hidden');
+  document.getElementById('emp-last').classList.add('hidden');
+}
+
+// ── TURNO ─────────────────────────────────────────────────────────
+function setTurno(t,btn) {
+  ST.turno=t;
+  document.querySelectorAll('#turno-tabs .tab').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  updTurnoHint();
+}
+
+function updTurnoHint() {
+  const el=document.getElementById('turno-hint'); if(!el) return;
+  const def={ matutino:'Estándar: 7:30 AM', vespertino:'Estándar: 2:30 PM', intermedio:'Solo sucursales con horario especial (⭐)' };
+  el.textContent=def[ST.turno]||'';
+}
+
+// ── GPS ───────────────────────────────────────────────────────────
+const getGPS=()=>new Promise(res=>{
+  if(!navigator.geolocation){res(null);return;}
+  navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),()=>res(null),{timeout:8000});
+});
+
+function haversine(a1,o1,a2,o2) {
+  const R=6371e3,r=Math.PI/180;
+  const da=(a2-a1)*r,do_=(o2-o1)*r;
+  const x=Math.sin(da/2)**2+Math.cos(a1*r)*Math.cos(a2*r)*Math.sin(do_/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+// ── SCANNER ───────────────────────────────────────────────────────
+async function startScan() {
+  if(!ST.employee){toast('Selecciona tu nombre primero','warn');return;}
+  try {
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    ST.stream=stream; ST.scanning=true;
+    document.getElementById('sc-idle').classList.add('hidden');
+    document.getElementById('sc-active').classList.remove('hidden');
+    const v=document.getElementById('scanner-video');
+    v.srcObject=stream; await v.play();
+    scanLoop();
+  } catch { toast('No se pudo acceder a la cámara. Usa el simulador ↓','err'); }
+}
+
+function scanLoop() {
+  if(!ST.scanning) return;
+  const v=document.getElementById('scanner-video');
+  const c=document.getElementById('scanner-canvas');
+  if(v.readyState===v.HAVE_ENOUGH_DATA) {
+    c.width=v.videoWidth; c.height=v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0);
+    const d=c.getContext('2d').getImageData(0,0,c.width,c.height);
+    const qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
+    if(qr){processQR(qr.data);return;}
+  }
+  ST.rafId=requestAnimationFrame(scanLoop);
+}
+
+function stopScan() {
+  ST.scanning=false;
+  if(ST.rafId) cancelAnimationFrame(ST.rafId);
+  if(ST.stream){ST.stream.getTracks().forEach(t=>t.stop());ST.stream=null;}
+  const i=document.getElementById('sc-idle'), a=document.getElementById('sc-active');
+  if(i)i.classList.remove('hidden'); if(a)a.classList.add('hidden');
+}
+
+// ── PROCESS QR ───────────────────────────────────────────────────
+async function processQR(code) {
+  stopScan();
+
+  const branch=DB.branches.find(b=>b.code===code);
+  if(!branch) {
+    toast(`QR no reconocido: "${code}". ¿Está esta sucursal en tu Sheet?`,'err');
+    return;
+  }
+  if(!ST.employee){toast('Selecciona tu nombre primero','warn');return;}
+
+  // GPS
+  const gpsCard=document.getElementById('gps-card');
+  gpsCard.classList.remove('hidden');
+  document.getElementById('gps-text').textContent='Verificando ubicación GPS…';
+  document.getElementById('gps-sub').textContent='';
+  document.getElementById('gps-badge').innerHTML='<div class="spin" style="width:20px;height:20px;border-width:2px;"></div>';
+
+  const pos=await getGPS();
+  let gpsOk=false, dist=null;
+
+  if(pos && branch.lat && branch.lng) {
+    dist=haversine(pos.lat,pos.lng,branch.lat,branch.lng);
+    gpsOk=dist<=GPS_RADIUS_M;
+    document.getElementById('gps-text').textContent=gpsOk?'Ubicación verificada ✓':'Fuera del rango permitido';
+    document.getElementById('gps-sub').textContent=`Distancia: ${dist.toFixed(0)}m · Farmacia ${branch.name}`;
+    document.getElementById('gps-badge').innerHTML=gpsOk
+      ?'<span class="badge badge-success">✓ OK</span>'
+      :'<span class="badge badge-danger">✗ Lejos</span>';
+  } else {
+    gpsOk=true;
+    document.getElementById('gps-text').textContent='GPS no disponible — modo demo';
+    document.getElementById('gps-sub').textContent='Registro guardado sin validación de ubicación';
+    document.getElementById('gps-badge').innerHTML='<span class="badge badge-warning">Demo</span>';
+  }
+
+  if(!gpsOk){toast(`Estás a ${dist?.toFixed(0)}m. Debes estar a ≤${GPS_RADIUS_M}m de la farmacia.`,'err');return;}
+
+  const now=new Date();
+  const delay=calcDelay(ST.turno,branch.code,now);
+  const slot=branch.schedules?.[ST.turno];
+
+  const rec={
+    id: Date.now(),
+    empId: ST.employee.id, empName: ST.employee.name, dept: ST.employee.dept,
+    branchCode: branch.code, branchName: branch.name,
+    turno: ST.turno, scheduled: slot?.label||'N/A',
+    ts: now.toISOString(), delay,
+    gps: pos?`${pos.lat.toFixed(5)},${pos.lng.toFixed(5)}`:'N/A',
+    distM: dist?.toFixed(0)||'N/A',
+  };
+  saveRec(rec);
+  showResultModal(rec);
+  renderLastRec();
+}
+
+function showResultModal(rec) {
+  const late=rec.delay>0;
+  document.getElementById('result-body').innerHTML=`
+    <div class="text-center">
+      <div class="check-anim">${late?'⏰':'✅'}</div>
+      <div style="font-family:var(--fh);font-size:20px;font-weight:700;margin-bottom:3px;">${late?'Registro con retardo':'¡Asistencia registrada!'}</div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:16px;">${fmtDate(rec.ts)}</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border-radius:11px;padding:14px;margin-bottom:16px;">
+      ${[['Empleado',rec.empName],['Sucursal',`${rec.branchName} (${rec.branchCode})`],['Turno',`${rec.turno} — ${rec.scheduled}`],['Hora entrada',fmtTime(rec.ts)]]
+        .map(([l,v])=>`<div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);"><span style="color:var(--muted);font-size:12px;width:100px;">${l}</span><span style="font-size:13px;font-weight:500;">${v}</span></div>`).join('')}
+      <div style="display:flex;align-items:center;padding:7px 0;">
+        <span style="color:var(--muted);font-size:12px;width:100px;">Retardo</span>
+        <span style="font-size:20px;font-weight:700;color:${late?'var(--warning)':'var(--success)'};">${late?`+${rec.delay} min`:'0 min ✓'}</span>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="closeModal()">Entendido</button>`;
+  document.getElementById('result-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('result-modal').classList.remove('open');}
+document.getElementById('result-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+// ── LAST RECORD ───────────────────────────────────────────────────
+function renderLastRec() {
+  if(!ST.employee) return;
+  const recs=todayRecs().filter(r=>r.empId===ST.employee.id);
+  const el=document.getElementById('emp-last');
+  if(!recs.length){el.classList.add('hidden');return;}
+  const r=recs[recs.length-1];
+  el.classList.remove('hidden');
+  document.getElementById('emp-last-body').innerHTML=`
+    <div class="flex items-center justify-between">
+      <div><div style="font-weight:600;font-size:13px;">${r.branchName} — ${r.scheduled}</div><div class="text-sm text-muted">Entrada: ${fmtTime(r.ts)}</div></div>
+      <span class="badge ${r.delay>0?'badge-warning':'badge-success'}">${r.delay>0?`+${r.delay}min`:'A tiempo'}</span>
+    </div>`;
+}
+
+// ── SIMULATOR ─────────────────────────────────────────────────────
+function renderSimBtns() {
+  const c=document.getElementById('sim-btns'); if(!c) return;
+  if(!DB.branches.length){
+    c.innerHTML='<span style="color:var(--muted);font-size:12px;">Sin sucursales. Configura tu Sheet.</span>';
+    return;
+  }
+  c.innerHTML=DB.branches.map(b=>`
+    <button class="btn btn-ghost btn-sm" onclick="simScan('${b.code}')"
+      style="font-family:var(--fh);font-size:11px;letter-spacing:.4px;padding:6px 10px;">
+      ${b.code}${b.specialSchedule?'⭐':''}
+    </button>`).join('');
+}
+function simScan(code){
+  if(!ST.employee){toast('Selecciona tu nombre primero','warn');return;}
+  processQR(code);
+}
+
+// ── ADMIN TABS ─────────────────────────────────────────────────────
+function admTab(tab,btn) {
+  ['dashboard','retardos','ausentes','qr','config'].forEach(t=>document.getElementById('tab-'+t).classList.add('hidden'));
+  document.querySelectorAll('#adm-tabs .tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.remove('hidden');
+  btn.classList.add('active');
+  if(tab==='dashboard') renderDashboard();
+  if(tab==='retardos')  renderRetardos();
+  if(tab==='ausentes')  renderAusentes();
+  if(tab==='qr')        renderQR();
+  if(tab==='config')    renderCfgStatus();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────
+function renderDashboard() {
+  const today=todayRecs();
+  const n=DB.employees.length;
+  const present=[...new Set(today.map(r=>r.empId))].length;
+  const late=today.filter(r=>r.delay>0);
+  const absent=Math.max(0,n-present);
+
+  document.getElementById('adm-stats').innerHTML=`
+    <div class="stat-card s-success"><div class="stat-icon">✅</div><div class="stat-val text-success">${present}</div><div class="stat-lbl">Presentes</div></div>
+    <div class="stat-card s-danger"> <div class="stat-icon">🚨</div><div class="stat-val text-danger">${absent}</div> <div class="stat-lbl">Ausentes</div></div>
+    <div class="stat-card s-warning"><div class="stat-icon">⏰</div><div class="stat-val text-warning">${late.length}</div><div class="stat-lbl">Retardos</div></div>
+    <div class="stat-card s-accent"> <div class="stat-icon">👥</div><div class="stat-val">${n}</div><div class="stat-lbl">Total emp.</div></div>`;
+
+  const el=document.getElementById('rec-list');
+  if(!today.length){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:36px 0;font-size:13px;">Sin registros hoy.</div>';return;}
+  el.innerHTML=[...today].sort((a,b)=>new Date(b.ts)-new Date(a.ts)).map(r=>`
+    <div class="row">
+      <span class="avatar" style="background:${avatarColor(r.empId)};color:#fff;font-size:11px;">${initials(r.empName)}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;">${r.empName}</div>
+        <div style="font-size:11px;color:var(--muted);">${r.branchName} · ${fmtTime(r.ts)} · ${r.turno}</div>
+      </div>
+      <span class="badge ${r.delay>0?'badge-warning':'badge-success'}">${r.delay>0?`+${r.delay}min`:'OK'}</span>
+    </div>`).join('');
+}
+
+// ── RETARDOS ──────────────────────────────────────────────────────
+function renderRetardos() {
+  const late=todayRecs().filter(r=>r.delay>0).sort((a,b)=>b.delay-a.delay);
+  const el=document.getElementById('ret-content');
+  if(!late.length){
+    el.innerHTML=`<div class="card text-center" style="padding:36px;">
+      <div style="font-size:44px;margin-bottom:10px;">🎉</div>
+      <div style="font-family:var(--fh);font-size:17px;font-weight:700;">Sin retardos hoy</div>
+      <div class="text-muted text-sm mt-2">Todos registraron a tiempo</div></div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div class="banner warn mb-3">⏰ <strong>${late.length}</strong> empleados con retardo · Total acumulado: <strong>${late.reduce((s,r)=>s+r.delay,0)} min</strong></div>
+    <div class="card">
+      <table class="dtbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Entrada</th><th>Retardo</th></tr></thead>
+      <tbody>${late.map(r=>`<tr>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <span class="avatar" style="background:${avatarColor(r.empId)};color:#fff;font-size:10px;width:28px;height:28px;">${initials(r.empName)}</span>
+          <div><div style="font-size:12px;font-weight:500;">${r.empName}</div><div style="font-size:10px;color:var(--muted);">${r.dept}</div></div></div></td>
+        <td><span class="badge badge-muted" style="font-family:var(--fh);font-size:10px;">${r.branchCode}</span></td>
+        <td style="font-size:12px;">${fmtTime(r.ts)}</td>
+        <td><span class="badge badge-warning">+${r.delay} min</span></td>
+      </tr>`).join('')}</tbody></table></div>`;
+}
+
+// ── AUSENTES ──────────────────────────────────────────────────────
+function renderAusentes() {
+  const now=new Date();
+  const presentIds=new Set(todayRecs().map(r=>r.empId));
+  const CUT={matutino:{h:7,m:30},vespertino:{h:14,m:30},intermedio:{h:8,m:30}};
+
+  const absent=DB.employees.filter(e=>{
+    if(presentIds.has(e.id)) return false;
+    const s=CUT[e.turnoDefault||'matutino'];
+    const cut=new Date(); cut.setHours(s.h,s.m+30,0,0);
+    return now>=cut;
+  });
+
+  const el=document.getElementById('aus-content');
+  if(!DB.employees.length){
+    el.innerHTML=`<div class="card text-center" style="padding:36px;">
+      <div style="font-size:44px;margin-bottom:10px;">📋</div>
+      <div style="font-family:var(--fh);font-size:17px;font-weight:700;">Sin datos de empleados</div>
+      <div class="text-muted text-sm mt-2">Configura tu Sheet en ⚙️ Config</div></div>`;
+    return;
+  }
+  if(!absent.length){
+    el.innerHTML=`<div class="card text-center" style="padding:36px;">
+      <div style="font-size:44px;margin-bottom:10px;">✅</div>
+      <div style="font-family:var(--fh);font-size:17px;font-weight:700;">Sin ausentes detectados</div></div>`;
+    return;
+  }
+
+  const byDept={};
+  absent.forEach(e=>{(byDept[e.dept]=byDept[e.dept]||[]).push(e);});
+
+  let html=`<div class="banner err mb-3">🚨 <strong>${absent.length}</strong> empleados sin registrar (≥30 min después de su turno)</div>`;
+  Object.entries(byDept).forEach(([dept,emps])=>{
+    html+=`<div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${dept} (${emps.length})</div>
+    <div class="card mb-3">${emps.map(e=>`
+      <div class="row">
+        <span class="avatar" style="background:rgba(255,71,87,0.18);color:var(--danger);font-size:10px;">${initials(e.name)}</span>
+        <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--danger);">${e.name}</div><div style="font-size:11px;color:var(--muted);">Turno ${e.turnoDefault}</div></div>
+        <span class="badge badge-danger">Ausente</span>
+      </div>`).join('')}</div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ── QR GRID ───────────────────────────────────────────────────────
+function renderQR() {
+  const g=document.getElementById('qr-grid'); if(!g) return;
+  if(!DB.branches.length){g.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px;">Sin sucursales cargadas.</div>';return;}
+
+  g.innerHTML=DB.branches.map(b=>`
+    <div class="qr-card">
+      <div id="qr_${b.code.replace(/[^a-z0-9]/gi,'_')}"></div>
+      <div class="qr-card-code">${b.code}</div>
+      <div class="qr-card-name">${b.name}${b.specialSchedule?' ⭐':''}</div>
+    </div>`).join('');
+
+  setTimeout(()=>{
+    DB.branches.forEach(b=>{
+      const id='qr_'+b.code.replace(/[^a-z0-9]/gi,'_');
+      const el=document.getElementById(id);
+      if(el&&typeof QRCode!=='undefined'){
+        el.innerHTML='';
+        new QRCode(el,{text:b.code,width:136,height:136,colorDark:'#0D1B2A',colorLight:'#FFFFFF',correctLevel:QRCode.CorrectLevel.H});
+      }
+    });
+  },100);
+}
+
+// ── CONFIG ─────────────────────────────────────────────────────────
+function renderCfgStatus() {
+  const el=document.getElementById('cfg-status-body'); if(!el) return;
+  const cfg=getCfg();
+  const srcLabel={live:'🟢 Google Sheets en vivo',cache:'💾 Caché local',demo:'⚠️ Modo demo'};
+  el.innerHTML=`
+    <div style="margin-bottom:5px;"><strong>Sheet ID:</strong> <span class="code-pill">${(cfg.sheetId||'—').slice(0,18)}…</span></div>
+    <div style="margin-bottom:5px;"><strong>Fuente:</strong> ${srcLabel[DB.source]||'—'}</div>
+    <div style="margin-bottom:5px;"><strong>Última sync:</strong> ${DB.syncedAt?DB.syncedAt.toLocaleString('es-MX'):'Nunca'}</div>
+    <div style="margin-bottom:5px;"><strong>Empleados:</strong> ${DB.employees.length}</div>
+    <div><strong>Sucursales:</strong> ${DB.branches.length}</div>`;
+}
+
+async function saveSheetId() {
+  const id=document.getElementById('cfg-sheet-id').value.trim();
+  if(!id){toast('Pega el Sheet ID primero','warn');return;}
+  setCfg({sheetId:id});
+  clearCache(false);
+  await reloadData(true);
+}
+
+async function testSheet() {
+  const id=document.getElementById('cfg-sheet-id').value.trim()||getCfg().sheetId;
+  if(!id){toast('Ingresa un Sheet ID','warn');return;}
+  const res=document.getElementById('cfg-test-result');
+  res.classList.remove('hidden');
+  res.innerHTML='<div class="banner loading"><div class="spin spin-sm"></div> Probando…</div>';
+  try {
+    const [er,br]=await Promise.all([fetchTab(id,'Empleados'),fetchTab(id,'Sucursales')]);
+    const e=parseEmployees(er), b=parseBranches(br);
+    res.innerHTML=`<div class="banner ok">✅ Conexión exitosa — ${e.length} empleados y ${b.length} sucursales encontrados.</div>`;
+  } catch(err) {
+    res.innerHTML=`<div class="banner err">❌ ${err.message}<br><small>Verifica que el Sheet esté publicado (Archivo → Publicar en la web → CSV).</small></div>`;
+  }
+}
+
+function clearCache(notify=true) {
+  localStorage.removeItem(K_DATA);
+  if(notify) toast('Caché eliminada','warn');
+}
+
+async function reloadData(force=false) {
+  await loadData(force);
+}
+
+function savePasses() {
+  const ep=document.getElementById('cfg-emp-pass').value;
+  const ap=document.getElementById('cfg-adm-pass').value;
+  if(ep) setCfg({empPass:ep});
+  if(ap) setCfg({admPass:ap});
+  toast('Contraseñas guardadas ✅');
+}
+
+// ── EXPORT ─────────────────────────────────────────────────────────
+function exportExcel() {
+  const recs=todayRecs();
+  if(!recs.length){toast('Sin registros hoy','warn');return;}
+  const ws=XLSX.utils.json_to_sheet(recs.map(r=>({
+    'ID':r.empId,'Nombre':r.empName,'Departamento':r.dept,
+    'Sucursal':r.branchName,'Código':r.branchCode,'Turno':r.turno,
+    'Hora Programada':r.scheduled,'Hora Registro':fmtTime(r.ts),
+    'Fecha':new Date(r.ts).toLocaleDateString('es-MX'),
+    'Retardo (min)':r.delay,'GPS':r.gps,'Distancia (m)':r.distM,
+  })));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Asistencia');
+  XLSX.writeFile(wb,`dogu_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('Excel exportado ✅');
+}
+
+function exportPDF() {
+  const recs=todayRecs();
+  if(!recs.length){toast('Sin registros hoy','warn');return;}
+  const rows=recs.map(r=>`<tr><td>${r.empName}</td><td>${r.dept}</td><td>${r.branchCode}</td><td>${r.turno}</td><td>${r.scheduled}</td><td>${fmtTime(r.ts)}</td><td style="color:${r.delay>0?'#D81B60':'#00C896'};font-weight:700;">${r.delay>0?`+${r.delay} min`:'OK'}</td></tr>`).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Dogu Reporte</title>
+  <style>body{font-family:Arial,sans-serif;padding:36px;}h1{color:#D81B60;margin-bottom:4px;}p{color:#666;font-size:13px;margin-bottom:20px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#0D1B2A;color:#fff;padding:9px 10px;text-align:left;}
+  td{padding:8px 10px;border-bottom:1px solid #eee;}tr:nth-child(even){background:#f8f8f8;}</style></head>
+  <body><h1>Dogu — Reporte de Asistencia</h1><p>${fmtDate(new Date())} · ${recs.length} registros</p>
+  <table><thead><tr><th>Empleado</th><th>Dept</th><th>Sucursal</th><th>Turno</th><th>Programado</th><th>Entrada</th><th>Retardo</th></tr></thead>
+  <tbody>${rows}</tbody></table></body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(),400);
+}
+
+// ── CLOSE DROPDOWN ON OUTSIDE CLICK ───────────────────────────────
+document.addEventListener('click',e=>{
+  const dd=document.getElementById('emp-drop');
+  const wrap=document.querySelector('.srch-wrap');
+  if(dd&&wrap&&!wrap.contains(e.target)) dd.classList.add('hidden');
+});
+document.getElementById('login-pass').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+
+// ── BOOT ──────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  // Arrancar carga de datos en paralelo con el splash
+  const dataPromise = loadData();
+
+  setTimeout(async () => {
+    // Esperar a que los datos carguen (máx 3s extra después del splash)
+    await Promise.race([dataPromise, new Promise(r=>setTimeout(r,3000))]);
+    const splash=document.getElementById('splash');
+    splash.style.opacity='0';
+    setTimeout(()=>{
+      splash.style.display='none';
+      showScreen('login');
+      renderLoginDot();
+    },450);
+  },1400);
+});
+</script>
+</body>
+</html>
